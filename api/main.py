@@ -7,67 +7,31 @@ import time
 app = Flask(__name__)
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-# CoinGecko币种映射
 COIN_MAP = {
-    # Top 10
-    'BTC': 'bitcoin',
-    'ETH': 'ethereum',
-    'USDT': 'tether',
-    'BNB': 'binancecoin',
-    'SOL': 'solana',
-    'USDC': 'usd-coin',
-    'XRP': 'ripple',
-    'DOGE': 'dogecoin',
-    'TON': 'the-open-network',
-    'ADA': 'cardano',
-    
-    # 11-20
-    'TRX': 'tron',
-    'AVAX': 'avalanche-2',
-    'SHIB': 'shiba-inu',
-    'WBTC': 'wrapped-bitcoin',
-    'LINK': 'chainlink',
-    'BCH': 'bitcoin-cash',
-    'DOT': 'polkadot',
-    'NEAR': 'near',
-    'LTC': 'litecoin',
-    'UNI': 'uniswap',
-    
-    # 21-30
-    'MATIC': 'polygon',
-    'ICP': 'internet-computer',
-    'PEPE': 'pepe',
-    'KAS': 'kaspa',
-    'ETC': 'ethereum-classic',
-    'APT': 'aptos',
-    'XMR': 'monero',
-    'STX': 'blockstack',
-    'HBAR': 'hedera-hashgraph',
-    'VET': 'vechain',
-    
-    # 31-35 Bonus
-    'FIL': 'filecoin',
-    'CRO': 'crypto-com-chain',
-    'ATOM': 'cosmos',
-    'ARB': 'arbitrum',
-    'OP': 'optimism'
+    'BTC': 'bitcoin', 'ETH': 'ethereum', 'USDT': 'tether', 'BNB': 'binancecoin',
+    'SOL': 'solana', 'USDC': 'usd-coin', 'XRP': 'ripple', 'DOGE': 'dogecoin',
+    'TON': 'the-open-network', 'ADA': 'cardano', 'TRX': 'tron', 'AVAX': 'avalanche-2',
+    'SHIB': 'shiba-inu', 'WBTC': 'wrapped-bitcoin', 'LINK': 'chainlink',
+    'BCH': 'bitcoin-cash', 'DOT': 'polkadot', 'NEAR': 'near', 'LTC': 'litecoin',
+    'UNI': 'uniswap', 'MATIC': 'polygon', 'ICP': 'internet-computer',
+    'PEPE': 'pepe', 'KAS': 'kaspa', 'ETC': 'ethereum-classic', 'APT': 'aptos',
+    'XMR': 'monero', 'STX': 'blockstack', 'HBAR': 'hedera-hashgraph',
+    'VET': 'vechain', 'FIL': 'filecoin', 'CRO': 'crypto-com-chain',
+    'ATOM': 'cosmos', 'ARB': 'arbitrum', 'OP': 'optimism'
 }
-
 
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
     if request.method == 'GET':
-        return jsonify({"status": "greta-price-bot CoinGecko PRODUCTION"})
+        return jsonify({"status": "greta-price-bot KAI PRODUCTION"})
     
     try:
         data = request.get_json()
         chat_id = data['message']['chat']['id']
         text = data['message']['text'].strip()
         
-        # /start 命令
         if text == '/start':
             send_message(chat_id, get_start_message())
-        # /price 命令
         elif re.match(r'^/price\s+(\w+)$', text):
             coin = re.match(r'^/price\s+(\w+)$', text).group(1).upper()
             send_message(chat_id, f"⏳ 查询 *{coin}* 实时价格...")
@@ -82,82 +46,55 @@ def webhook():
         return jsonify({"status": "ok"}), 200
 
 def get_start_message():
-    """启动消息"""
-    return """🚀 *KAI行情小助手* 实时上线！🎉
+    return """🚀 KAI行情小助手已启动！
 
-📊 `/price BTC` - 比特币实时价格
-📊 `/price ETH` - 以太坊实时价格  
-📊 `/price SOL` - Solana实时价格
-
-💎 *KAI全球站* - 安全 • 透明 • 高效 ！"""
+📊 /price BTC - 比特币实时价格
+📊 /price ETH - 以太坊实时价格  
+📊 /price SOL - Solana实时价格"""
 
 def get_help_message():
-    """帮助消息"""
-    return """📝 *使用说明*：
+    return """📝 使用说明：
 
-🚀 `/start` - 显示帮助
-💰 `/price BTC` - 比特币价格
-💰 `/price ETH` - 以太坊价格  
-💰 `/price SOL` - Solana价格
+/price BTC - 比特币价格
+/price ETH - 以太坊价格  
+/price SOL - Solana价格
 
-💎  [*立即加入KAI全球站*](https://kai.com/register?inviteCode=G6D7B9) """
+支持35种主流币种"""
 
 def get_coingecko_price(symbol):
-    """CoinGecko API - 超稳定重试"""
     if symbol not in COIN_MAP:
-        return f"""❌ *{symbol}* 暂不支持
+        return f"""❌ {symbol} 暂不支持
 
-💡 支持币种：BTC, ETH, SOL, BNB, XRP, ADA, DOGE
-
-📈 [立即交易](https://kai.com/register?inviteCode=G6D7B9)"""
+支持：BTC ETH SOL BNB XRP ADA DOGE等（35种）\n\n""" + get_kai_links()
     
     coin_id = COIN_MAP[symbol]
     
-    # 3次重试机制
     for attempt in range(3):
         try:
             url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
             resp = requests.get(url, timeout=15)
             resp.raise_for_status()
-            
             data = resp.json()
             if coin_id in data and 'usd' in data[coin_id]:
                 price = float(data[coin_id]['usd'])
-                return format_price_message(symbol, price)
-                
-        except requests.exceptions.Timeout:
+                return f"""💰 {symbol}/USD: ${price:,.4f}
+
+价格数据由 CoinGecko 提供""" + get_kai_links()
+        except:
             time.sleep(2 ** attempt)
             continue
-        except requests.exceptions.RequestException:
-            time.sleep(1)
-            continue
-        except (KeyError, ValueError):
-            break
     
-    # 优雅降级 - 显示KAI链接
-    return f"""💰 *{symbol}* 价格查询中...
+    return """💰 价格查询中...""" + get_kai_links()
 
+def get_kai_links():
+    """你的KAI三连链接"""
+    return """
 📈 [Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)
 😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
-👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)
-
-
-
-def format_price_message(symbol, price):
-    """价格格式化"""
-    return f"""💰 *{symbol}/USD: ${price:,.4f}*
-
-📈 [Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)
-😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
-👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)
-
-
+👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)"""
 
 def send_message(chat_id, text):
-    """稳定发送 - Markdown + 纯文本降级"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    
-    # Markdown优先
     payload = {
         "chat_id": chat_id,
         "text": text,
@@ -166,9 +103,7 @@ def send_message(chat_id, text):
     }
     try:
         requests.post(url, json=payload, timeout=12)
-        return
     except:
-        # 纯文本降级
         payload.pop("parse_mode", None)
         requests.post(url, json=payload, timeout=5)
 
