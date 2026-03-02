@@ -1,21 +1,25 @@
 import os
 import asyncio
 import logging
-from telegram import Update
+import aiohttp
+from flask import Flask, request, jsonify
+from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, ContextTypes
 from dotenv import load_dotenv
-import aiohttp
+import json
 
-# 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# 加载环境变量
+# 配置
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
-    raise ValueError("请设置 .env 文件中的 BOT_TOKEN")
+    raise ValueError("请设置 BOT_TOKEN 环境变量")
 
+app = Flask(__name__)
+bot = Bot(token=BOT_TOKEN)
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# 你的原命令处理器（保持不变！）
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """启动命令"""
     await update.message.reply_text(
@@ -45,28 +49,43 @@ async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         price = await get_price(symbol)
         await update.message.reply_text(
             f"💰 {symbol}/USDT: **${price:,.2f}**\n\n"
-
             f"[📈 Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)\n"
-            
-             f"[😇 Ecological Partner（成为合伙人） ](https://kai.com/kai-ambassador.html)\n"
-
-              f"[👸 C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)\n",   # ← 可点击链接！
-            
-            parse_mode = "Markdown"
+            f"[😇 Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)\n"
+            f"[👸 C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)",
+            parse_mode="Markdown"
         )
     except Exception as e:
         logger.error(f"价格查询错误: {e}")
         await update.message.reply_text("❌ 查询失败，请稍后重试")
 
-def main():
-    """主函数"""
-    app = Application.builder().token(BOT_TOKEN).build()
+# Serverless Webhook端点
+@app.route('/', methods=['POST', 'GET'])
+def webhook():
+    """Telegram Webhook + 健康检查"""
+    if request.method == 'GET':
+        return jsonify({"status": "greta-price-bot ok"})
     
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("price", price))
+    try:
+        # 解析Telegram更新
+        json_data = request.get_json()
+        update = Update.de_json(json_data, bot)
+        
+        # 创建临时应用处理更新
+        app_temp = Application.builder().token(BOT_TOKEN).build()
+        app_temp.add_handler(CommandHandler("start", start))
+        app_temp.add_handler(CommandHandler("price", price))
+        
+        # 异步处理
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(app_temp.process_update(update))
+        loop.close()
+        
+        return jsonify({"status": "ok"})
     
-    logger.info("🤖 Bot 启动中...")
-    app.run_polling(drop_pending_updates=True)
+    except Exception as e:
+        logger.error(f"Webhook错误: {e}")
+        return jsonify({"error": str(e)}), 500
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    app.run(debug=True)
