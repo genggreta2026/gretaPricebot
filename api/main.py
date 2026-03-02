@@ -1,69 +1,90 @@
 from flask import Flask, request, jsonify
-import requests
 import os
-import json
-import re
+import traceback
 
 app = Flask(__name__)
+
+# 调试：打印所有环境变量（确认TOKEN）
+print("=== STARTUP ===")
+print("BOT_TOKEN exists:", bool(os.getenv('BOT_TOKEN')))
+print("BOT_TOKEN preview:", os.getenv('BOT_TOKEN', '***HIDDEN***')[:10] + "..." if os.getenv('BOT_TOKEN') else 'MISSING')
+
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
-    """Telegram Webhook + 健康检查"""
-    if request.method == 'GET':
-        return jsonify({"status": "greta-price-bot ok"})
+    print("=== REQUEST START ===")
+    print("Method:", request.method)
     
+    if request.method == 'GET':
+        print("GET request - health check")
+        return jsonify({"status": "alive", "token_ok": bool(BOT_TOKEN)})
+    
+    print("=== PROCESSING POST ===")
+    
+    # Step 1: 获取raw数据
+    raw_data = request.get_data(as_text=True)
+    print("Step 1 - Raw data:", raw_data[:200])
+    
+    # Step 2: 尝试JSON解析
     try:
-        # 解析Telegram消息
         data = request.get_json()
-        chat_id = data['message']['chat']['id']
-        text = data['message']['text']
-        
-        # 处理命令
-        if text == '/start':
-            send_message(chat_id, get_start_message())
-        elif re.match(r'/price\s+\w+', text):
-            coin = text.split(' ', 1)[1].upper()
-            send_message(chat_id, f"⏳ 查询 {coin} 价格...")
-            price_text = get_price_response(coin)
-            send_message(chat_id, price_text)
-        
-        return jsonify({"status": "ok"})
+        print("Step 2 - JSON OK, keys:", list(data.keys()) if data else 'NO DATA')
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-def get_start_message():
-    """启动消息"""
-    return """🚀 行情 Bot 已启动！
-📊 /price BTC - 查询比特币价格
-📊 /price ETH - 查询以太坊价格"""
-
-def get_price_response(symbol):
-    """获取币安价格 + KAI链接"""
+        print("Step 2 - JSON ERROR:", str(e))
+        return jsonify({"step": 2, "error": str(e)}), 400
+    
+    # Step 3: 检查message结构
+    if 'message' not in data:
+        print("Step 3 - No message field")
+        return jsonify({"step": 3, "error": "No message"}), 400
+    
+    message = data['message']
+    print("Step 3 - Message keys:", list(message.keys()))
+    
+    # Step 4: 提取chat_id和text
     try:
-        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}USDT"
-        resp = requests.get(url, timeout=10)
-        data = resp.json()
-        price = float(data['price'])
-        
-        return f"""💰 {symbol}/USDT: **${price:,.4f}**
+        chat_id = message['chat']['id']
+        text = message.get('text', '')
+        print(f"Step 4 - chat_id: {chat_id}, text: '{text}'")
+    except Exception as e:
+        print("Step 4 - Parse ERROR:", str(e))
+        return jsonify({"step": 4, "error": str(e)}), 400
+    
+    # Step 5: 测试BOT_TOKEN
+    if not BOT_TOKEN:
+        print("Step 5 - NO BOT_TOKEN")
+        return jsonify({"step": 5, "error": "No BOT_TOKEN"}), 500
+    
+    print("Step 5 - BOT_TOKEN OK")
+    
+    # Step 6: 发送最简单消息（无复杂逻辑）
+    try:
+        print("Step 6 - Sending simple message...")
+        send_simple_message(chat_id, f"收到: {text[:50]}")
+        print("Step 6 - Send SUCCESS")
+    except Exception as e:
+        print("Step 6 - Send ERROR:", str(e))
+        return jsonify({"step": 6, "error": str(e)}), 500
+    
+    print("=== REQUEST SUCCESS ===")
+    return jsonify({"status": "ok", "step": 7})
 
-📈 [Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)
-😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
-👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)"""
-    except:
-        return f"❌ {symbol} 查询失败，请稍后重试"
-
-def send_message(chat_id, text):
-    """发送Telegram消息"""
+def send_simple_message(chat_id, text):
+    """最简单的Telegram消息（无Markdown）"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": text,
-        "parse_mode": "Markdown",
-        "disable_web_page_preview": True
+        "text": text
     }
-    requests.post(url, json=payload, timeout=10)
+    print(f"Sending: {payload}")
+    
+    import requests
+    resp = requests.post(url, json=payload, timeout=10)
+    print(f"Telegram API response: {resp.status_code} - {resp.text[:200]}")
+    
+    if resp.status_code != 200:
+        raise Exception(f"Telegram API failed: {resp.status_code}")
 
 if __name__ == '__main__':
     app.run(debug=True)
