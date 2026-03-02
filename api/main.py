@@ -79,7 +79,7 @@ def get_coingecko_price(symbol):
                 price = float(data[coin_id]['usd'])
                 return f"""💰 {symbol}/USD: ${price:,.4f}
 
-价格数据由 CoinGecko 提供""" + get_kai_links()
+""" + get_kai_links()
         except:
             time.sleep(2 ** attempt)
             continue
