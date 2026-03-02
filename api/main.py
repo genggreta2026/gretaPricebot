@@ -23,7 +23,7 @@ COIN_MAP = {
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
     if request.method == 'GET':
-        return jsonify({"status": "greta-price-bot KAI PRODUCTION"})
+        return jsonify({"status": "KAI-price-bot PRODUCTION"})
     
     try:
         data = request.get_json()
@@ -35,8 +35,10 @@ def webhook():
         elif re.match(r'^/price\s+(\w+)$', text):
             coin = re.match(r'^/price\s+(\w+)$', text).group(1).upper()
             send_message(chat_id, f"⏳ 查询 *{coin}* 实时价格...")
-            price_text = get_coingecko_price(coin)
+            price_text = get_price(coin)
             send_message(chat_id, price_text)
+        elif text in ['/help', '/coins']:
+            send_message(chat_id, get_coin_list())
         else:
             send_message(chat_id, get_help_message())
         
@@ -46,26 +48,44 @@ def webhook():
         return jsonify({"status": "ok"}), 200
 
 def get_start_message():
-    return """🚀 KAI行情小助手已启动！
+    return """🚀 *KAI行情小助手* 实时上线！
 
-📊 /price BTC - 比特币实时价格
-📊 /price ETH - 以太坊实时价格  
-📊 /price SOL - Solana实时价格"""
+📊 `/price BTC` - 比特币实时价格
+📊 `/price ETH` - 以太坊实时价格  
+📊 `/price SOL` - Solana实时价格
+
+📋 `/help` 查看全部35种支持币种"""
 
 def get_help_message():
-    return """📝 使用说明：
+    return """📝 *快速使用*：
 
-/price BTC - 比特币价格
-/price ETH - 以太坊价格  
-/price SOL - Solana价格
+💰 `/price BTC` - 比特币价格
+💰 `/price ETH` - 以太坊价格  
+💰 `/price PEPE` - Pepe价格
 
-支持35种主流币种"""
+📋 `/help` - 查看全部35币种
+🚀 `/start` - 重置帮助"""
 
-def get_coingecko_price(symbol):
+def get_coin_list():
+    """35币种列表"""
+    coins = list(COIN_MAP.keys())
+    top10 = ', '.join(coins[:10])
+    next15 = ', '.join(coins[10:25])
+    last10 = ', '.join(coins[25:])
+    
+    return f"""📋 *支持35主流币种*
+
+**Top10**: `{top10}`
+**11-25**: `{next15}`
+**26-35**: `{last10}`
+
+💡 示例：`/price PEPE` `/price KAS`"""
+
+def get_price(symbol):
     if symbol not in COIN_MAP:
-        return f"""❌ {symbol} 暂不支持
+        return f"""❌ *{symbol}* 暂不支持
 
-支持：BTC ETH SOL BNB XRP ADA DOGE等（35种）\n\n""" + get_kai_links()
+📋 `/help` 查看35种支持币种""" + get_kai_buttons()
     
     coin_id = COIN_MAP[symbol]
     
@@ -77,20 +97,27 @@ def get_coingecko_price(symbol):
             data = resp.json()
             if coin_id in data and 'usd' in data[coin_id]:
                 price = float(data[coin_id]['usd'])
-                return f"""💰 {symbol}/USD: ${price:,.4f}
-     """ + get_kai_links()
+                return f"""💰 *{symbol}/USD: ${price:,.4f}*
+
+*实时行情数据*""" + get_kai_buttons()
         except:
             time.sleep(2 ** attempt)
             continue
     
-    return """💰 价格查询中...""" + get_kai_links()
+    return f"""💰 *{symbol}* 价格查询中...""" + get_kai_buttons()
 
-def get_kai_links():
-    """你的KAI三连链接"""
+def get_kai_buttons():
+    """🔥 KAI三连按钮超突出版！"""
     return """
-📈 [Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)
-😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
-👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)"""
+━━━━━━━━━━━━━━━━━━━━━━━━
+🚀 *KAI全球站三大机会*
+
+🔥 **立即交易** 👉 https://kai.com/register?inviteCode=G6D7B9
+💎 **合伙人计划** 👉 https://kai.com/kai-ambassador.html  
+👑 **C2C商家招募** 👉 https://kai.com/register?inviteCode=G6D7B9
+
+━━━━━━━━━━━━━━━━━━━━━━━━
+*点击链接直达 | 安全 • 快速 • 全球*"""
 
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
