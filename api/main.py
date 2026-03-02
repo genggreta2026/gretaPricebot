@@ -1,64 +1,12 @@
-import os
-import asyncio
-import logging
-import aiohttp
 from flask import Flask, request, jsonify
-from telegram import Update, Bot
-from telegram.ext import Application, CommandHandler, ContextTypes
-from dotenv import load_dotenv
+import requests
+import os
 import json
-
-# 配置
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
-if not BOT_TOKEN:
-    raise ValueError("请设置 BOT_TOKEN 环境变量")
+import re
 
 app = Flask(__name__)
-bot = Bot(token=BOT_TOKEN)
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+BOT_TOKEN = os.getenv('BOT_TOKEN')
 
-# 你的原命令处理器（保持不变！）
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """启动命令"""
-    await update.message.reply_text(
-        "🚀 行情 Bot 已启动！\n"
-        "📊 /price BTC - 查询比特币价格\n"
-        "📊 /price ETH - 查询以太坊价格"
-    )
-
-async def get_price(symbol: str):
-    """获取币安价格"""
-    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}USDT"
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as resp:
-            data = await resp.json()
-            return float(data['price'])
-
-async def price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """价格查询"""
-    try:
-        if not context.args:
-            await update.message.reply_text("❌ 请指定币种：/price BTC")
-            return
-        
-        symbol = context.args[0].upper()
-        await update.message.reply_text(f"⏳ 查询 {symbol} 价格...")
-        
-        price = await get_price(symbol)
-        await update.message.reply_text(
-            f"💰 {symbol}/USDT: **${price:,.2f}**\n\n"
-            f"[📈 Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)\n"
-            f"[😇 Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)\n"
-            f"[👸 C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)",
-            parse_mode="Markdown"
-        )
-    except Exception as e:
-        logger.error(f"价格查询错误: {e}")
-        await update.message.reply_text("❌ 查询失败，请稍后重试")
-
-# Serverless Webhook端点
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
     """Telegram Webhook + 健康检查"""
@@ -66,26 +14,56 @@ def webhook():
         return jsonify({"status": "greta-price-bot ok"})
     
     try:
-        # 解析Telegram更新
-        json_data = request.get_json()
-        update = Update.de_json(json_data, bot)
+        # 解析Telegram消息
+        data = request.get_json()
+        chat_id = data['message']['chat']['id']
+        text = data['message']['text']
         
-        # 创建临时应用处理更新
-        app_temp = Application.builder().token(BOT_TOKEN).build()
-        app_temp.add_handler(CommandHandler("start", start))
-        app_temp.add_handler(CommandHandler("price", price))
-        
-        # 异步处理
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(app_temp.process_update(update))
-        loop.close()
+        # 处理命令
+        if text == '/start':
+            send_message(chat_id, get_start_message())
+        elif re.match(r'/price\s+\w+', text):
+            coin = text.split(' ', 1)[1].upper()
+            send_message(chat_id, f"⏳ 查询 {coin} 价格...")
+            price_text = get_price_response(coin)
+            send_message(chat_id, price_text)
         
         return jsonify({"status": "ok"})
-    
     except Exception as e:
-        logger.error(f"Webhook错误: {e}")
         return jsonify({"error": str(e)}), 500
+
+def get_start_message():
+    """启动消息"""
+    return """🚀 行情 Bot 已启动！
+📊 /price BTC - 查询比特币价格
+📊 /price ETH - 查询以太坊价格"""
+
+def get_price_response(symbol):
+    """获取币安价格 + KAI链接"""
+    try:
+        url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}USDT"
+        resp = requests.get(url, timeout=10)
+        data = resp.json()
+        price = float(data['price'])
+        
+        return f"""💰 {symbol}/USDT: **${price:,.4f}**
+
+📈 [Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)
+😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
+👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)"""
+    except:
+        return f"❌ {symbol} 查询失败，请稍后重试"
+
+def send_message(chat_id, text):
+    """发送Telegram消息"""
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
+    payload = {
+        "chat_id": chat_id,
+        "text": text,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True
+    }
+    requests.post(url, json=payload, timeout=10)
 
 if __name__ == '__main__':
     app.run(debug=True)
