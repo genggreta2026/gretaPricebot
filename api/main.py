@@ -1,90 +1,82 @@
 from flask import Flask, request, jsonify
+import requests
 import os
-import traceback
+import re
 
 app = Flask(__name__)
-
-# 调试：打印所有环境变量（确认TOKEN）
-print("=== STARTUP ===")
-print("BOT_TOKEN exists:", bool(os.getenv('BOT_TOKEN')))
-print("BOT_TOKEN preview:", os.getenv('BOT_TOKEN', '***HIDDEN***')[:10] + "..." if os.getenv('BOT_TOKEN') else 'MISSING')
-
 BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
-    print("=== REQUEST START ===")
-    print("Method:", request.method)
-    
     if request.method == 'GET':
-        print("GET request - health check")
-        return jsonify({"status": "alive", "token_ok": bool(BOT_TOKEN)})
+        return jsonify({"status": "greta-price-bot production ready"})
     
-    print("=== PROCESSING POST ===")
-    
-    # Step 1: 获取raw数据
-    raw_data = request.get_data(as_text=True)
-    print("Step 1 - Raw data:", raw_data[:200])
-    
-    # Step 2: 尝试JSON解析
     try:
         data = request.get_json()
-        print("Step 2 - JSON OK, keys:", list(data.keys()) if data else 'NO DATA')
-    except Exception as e:
-        print("Step 2 - JSON ERROR:", str(e))
-        return jsonify({"step": 2, "error": str(e)}), 400
-    
-    # Step 3: 检查message结构
-    if 'message' not in data:
-        print("Step 3 - No message field")
-        return jsonify({"step": 3, "error": "No message"}), 400
-    
-    message = data['message']
-    print("Step 3 - Message keys:", list(message.keys()))
-    
-    # Step 4: 提取chat_id和text
-    try:
-        chat_id = message['chat']['id']
-        text = message.get('text', '')
-        print(f"Step 4 - chat_id: {chat_id}, text: '{text}'")
-    except Exception as e:
-        print("Step 4 - Parse ERROR:", str(e))
-        return jsonify({"step": 4, "error": str(e)}), 400
-    
-    # Step 5: 测试BOT_TOKEN
-    if not BOT_TOKEN:
-        print("Step 5 - NO BOT_TOKEN")
-        return jsonify({"step": 5, "error": "No BOT_TOKEN"}), 500
-    
-    print("Step 5 - BOT_TOKEN OK")
-    
-    # Step 6: 发送最简单消息（无复杂逻辑）
-    try:
-        print("Step 6 - Sending simple message...")
-        send_simple_message(chat_id, f"收到: {text[:50]}")
-        print("Step 6 - Send SUCCESS")
-    except Exception as e:
-        print("Step 6 - Send ERROR:", str(e))
-        return jsonify({"step": 6, "error": str(e)}), 500
-    
-    print("=== REQUEST SUCCESS ===")
-    return jsonify({"status": "ok", "step": 7})
+        chat_id = data['message']['chat']['id']
+        text = data['message']['text']
+        
+        # /start 命令
+        if text == '/start':
+            send_message(chat_id, """🚀 *KAI行情小助手* 已启动！🎉
 
-def send_simple_message(chat_id, text):
-    """最简单的Telegram消息（无Markdown）"""
+📊 *常用命令*：
+/price BTC - 比特币实时价格
+/price ETH - 以太坊实时价格  
+/price SOL - Solana实时价格
+
+💎 *KAI全球站* - 您的最佳交易平台！""")
+        
+        # /price 命令
+        elif re.match(r'^/price\s+(\w+)$', text):
+            coin = re.match(r'^/price\s+(\w+)$', text).group(1).upper()
+            send_message(chat_id, f"⏳ 查询 *{coin}* 实时价格...")
+            
+            try:
+                price_text = get_binance_price(coin)
+                send_message(chat_id, price_text)
+            except Exception as e:
+                send_message(chat_id, f"❌ *{coin}* 查询失败，请稍后重试\n\n💡 尝试其他币种：`/price ETH`")
+        
+        # 其他消息
+        else:
+            send_message(chat_id, """📝 *使用说明*：
+
+/start - 显示此帮助
+/price BTC - 查询比特币价格
+/price ETH - 查询以太坊价格
+
+💎 *立即加入KAI全球站* 👇""")
+        
+        return jsonify({"status": "ok"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+def get_binance_price(symbol):
+    """获取币安实时价格 + KAI三连推广链接"""
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol}USDT"
+    resp = requests.get(url, timeout=10)
+    data = resp.json()
+    price = float(data['price'])
+    
+    return f"""💰 *{symbol}/USDT: ${price:,.2f}*
+
+📈 *[立即交易 Trade Now](https://kai.com/register?inviteCode=G6D7B9)*
+😇 *[合伙人计划 Ecological Partner](https://kai.com/kai-ambassador.html)*
+👸 *[C2C商家招募 C2C Merchant](https://kai.com/register?inviteCode=G6D7B9)*
+
+*实时价格 | 币安数据 | KAI全球站*"""
+
+def send_message(chat_id, text):
+    """稳定发送Telegram消息"""
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id": chat_id,
-        "text": text
+        "text": text,
+        "parse_mode": "Markdown",
+        "disable_web_page_preview": True
     }
-    print(f"Sending: {payload}")
-    
-    import requests
-    resp = requests.post(url, json=payload, timeout=10)
-    print(f"Telegram API response: {resp.status_code} - {resp.text[:200]}")
-    
-    if resp.status_code != 200:
-        raise Exception(f"Telegram API failed: {resp.status_code}")
+    requests.post(url, json=payload, timeout=10)
 
 if __name__ == '__main__':
     app.run(debug=True)
