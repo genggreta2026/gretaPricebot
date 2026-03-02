@@ -9,14 +9,50 @@ BOT_TOKEN = os.getenv('BOT_TOKEN')
 
 # CoinGecko币种映射
 COIN_MAP = {
+    # Top 10
     'BTC': 'bitcoin',
     'ETH': 'ethereum',
-    'SOL': 'solana',
+    'USDT': 'tether',
     'BNB': 'binancecoin',
+    'SOL': 'solana',
+    'USDC': 'usd-coin',
     'XRP': 'ripple',
+    'DOGE': 'dogecoin',
+    'TON': 'the-open-network',
     'ADA': 'cardano',
-    'DOGE': 'dogecoin'
+    
+    # 11-20
+    'TRX': 'tron',
+    'AVAX': 'avalanche-2',
+    'SHIB': 'shiba-inu',
+    'WBTC': 'wrapped-bitcoin',
+    'LINK': 'chainlink',
+    'BCH': 'bitcoin-cash',
+    'DOT': 'polkadot',
+    'NEAR': 'near',
+    'LTC': 'litecoin',
+    'UNI': 'uniswap',
+    
+    # 21-30
+    'MATIC': 'polygon',
+    'ICP': 'internet-computer',
+    'PEPE': 'pepe',
+    'KAS': 'kaspa',
+    'ETC': 'ethereum-classic',
+    'APT': 'aptos',
+    'XMR': 'monero',
+    'STX': 'blockstack',
+    'HBAR': 'hedera-hashgraph',
+    'VET': 'vechain',
+    
+    # 31-35 Bonus
+    'FIL': 'filecoin',
+    'CRO': 'crypto-com-chain',
+    'ATOM': 'cosmos',
+    'ARB': 'arbitrum',
+    'OP': 'optimism'
 }
+
 
 @app.route('/', methods=['POST', 'GET'])
 def webhook():
@@ -53,7 +89,7 @@ def get_start_message():
 📊 `/price ETH` - 以太坊实时价格  
 📊 `/price SOL` - Solana实时价格
 
-💎 *KAI全球站* - 安全 • 快速 • 全球！"""
+💎 *KAI全球站* - 安全 • 透明 • 高效 ！"""
 
 def get_help_message():
     """帮助消息"""
@@ -64,7 +100,7 @@ def get_help_message():
 💰 `/price ETH` - 以太坊价格  
 💰 `/price SOL` - Solana价格
 
-💎 *立即加入KAI全球站* 👇"""
+💎  [*立即加入KAI全球站*](https://kai.com/register?inviteCode=G6D7B9) """
 
 def get_coingecko_price(symbol):
     """CoinGecko API - 超稳定重试"""
@@ -105,7 +141,7 @@ def get_coingecko_price(symbol):
 😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
 👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)
 
-*全球聚合实时价格 | CoinGecko数据*"""
+
 
 def format_price_message(symbol, price):
     """价格格式化"""
@@ -115,7 +151,7 @@ def format_price_message(symbol, price):
 😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
 👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)
 
-*全球聚合实时价格 | CoinGecko数据*"""
+
 
 def send_message(chat_id, text):
     """稳定发送 - Markdown + 纯文本降级"""
