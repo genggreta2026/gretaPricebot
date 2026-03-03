@@ -34,7 +34,7 @@ def webhook():
             send_message(chat_id, get_start_message())
         elif re.match(r'^/price\s+(\w+)$', text):
             coin = re.match(r'^/price\s+(\w+)$', text).group(1).upper()
-            send_message(chat_id, f"⏳ 查询 *{coin}* 实时价格...")
+            send_message(chat_id, f"⏳ Query real-time price of *{coin}* ...")
             price_text = get_coingecko_price(coin)
             send_message(chat_id, price_text)
         else:
