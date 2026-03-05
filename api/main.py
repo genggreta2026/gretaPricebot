@@ -32,36 +32,21 @@ def webhook():
         chat_id = data['message']['chat']['id']
         text = data['message']['text'].strip()
         
-        if text == '/start':
-            send_message(chat_id, get_start_message())
-        elif re.match(r'^/price\s+(\w+)$', text):
+        
+        if re.match(r'^/price\s+(\w+)$', text):
             coin = re.match(r'^/price\s+(\w+)$', text).group(1).upper()
             send_message(chat_id, f"⏳ Query real-time price of *{coin}* ...")
             price_text = get_coingecko_price(coin)
             send_message(chat_id, price_text)
-        else:
-            send_message(chat_id, get_help_message())
+
         
         return jsonify({"status": "ok"})
+        
     except Exception as e:
         print(f"Error: {e}")
         return jsonify({"status": "ok"}), 200
 
-def get_start_message():
-    return """🚀 KAI行情小助手已启动！
 
-📊 /price BTC - 比特币实时价格
-📊 /price ETH - 以太坊实时价格  
-📊 /price SOL - Solana实时价格"""
-
-def get_help_message():
-    return """📝 使用说明：
-
-/price BTC - 比特币价格
-/price ETH - 以太坊价格  
-/price SOL - Solana价格
-
-支持35种主流币种"""
 
 def get_coingecko_price(symbol):
     if symbol not in COIN_MAP:
