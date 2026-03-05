@@ -46,20 +46,19 @@ def webhook():
         return jsonify({"status": "ok"}), 200
 
 def get_start_message():
-    return """🚀 KAI行情小助手已启动！
+    return """🚀 KAI_Price_bot has been launched ！
 
-📊 /price BTC - 比特币实时价格
-📊 /price ETH - 以太坊实时价格  
-📊 /price SOL - Solana实时价格"""
+📊 /price BTC - Bitcoin Price
+📊 /price ETH -  Ethereum Price  
+📊 /price SOL - Solana Price """
 
 def get_help_message():
-    return """📝 使用说明：
+    return """📝 Instructions：
 
-/price BTC - 比特币价格
-/price ETH - 以太坊价格  
-/price SOL - Solana价格
+/price BTC -  Bitcoin Price
+/price ETH -  Ethereum Price 
+/price SOL - Solana Price """
 
-支持35种主流币种"""
 
 def get_coingecko_price(symbol):
     if symbol not in COIN_MAP:
