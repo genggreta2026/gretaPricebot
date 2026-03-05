@@ -62,7 +62,7 @@ def get_help_message():
 
 def get_coingecko_price(symbol):
     if symbol not in COIN_MAP:
-        return f"""❌ {symbol} 暂不支持
+        return f"""❌ {symbol} Not supported temporarily
 
 支持：BTC ETH SOL BNB XRP ADA DOGE等（35种）\n\n""" + get_kai_links()
     
