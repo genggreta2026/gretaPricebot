@@ -50,9 +50,9 @@ def webhook():
 
 def get_coingecko_price(symbol):
     if symbol not in COIN_MAP:
-        return f"""❌ {symbol} 暂不支持
+        return f"""❌ {symbol} Not supported at the moment
 
-支持：BTC ETH SOL BNB XRP ADA DOGE等（35种）\n\n""" + get_kai_links()
+supported ：BTC ETH SOL BNB XRP ADA DOGE..（35 types）\n\n""" + get_kai_links()
     
     coin_id = COIN_MAP[symbol]
     
