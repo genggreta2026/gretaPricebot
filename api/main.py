@@ -19,7 +19,7 @@ COIN_MAP = {
     'PEPE': 'pepe', 'KAS': 'kaspa', 'ETC': 'ethereum-classic', 'APT': 'aptos',
     'XMR': 'monero', 'STX': 'blockstack', 'HBAR': 'hedera-hashgraph',
     'VET': 'vechain', 'FIL': 'filecoin', 'CRO': 'crypto-com-chain',
-    'ATOM': 'cosmos', 'ARB': 'arbitrum', 'OP': 'optimism'，'XAUT': 'tether-gold'
+    'ATOM': 'cosmos', 'ARB': 'arbitrum', 'OP': 'optimism', 'XAUT': 'tether-gold'
 }
 
 @app.route('/', methods=['POST', 'GET'])
