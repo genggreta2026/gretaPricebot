@@ -77,7 +77,7 @@ def get_kai_links():
     return """
 📈 [Trade Now（立即交易）](https://kai.com/register?inviteCode=G6D7B9)
 😇 [Ecological Partner（成为合伙人）](https://kai.com/kai-ambassador.html)
-👸 [C2C Merchant（成为C2C商家）](https://kai.com/register?inviteCode=G6D7B9)"""
+👸 [C2C Merchant（成为C2C商家）](https://docs.google.com/forms/d/e/1FAIpQLSfvCEs_6WIvY-ubr_WBqtfWPMSDBmh74S1RbUm0Zdk6dCdTdg/viewform)"""
 
 def send_message(chat_id, text):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
